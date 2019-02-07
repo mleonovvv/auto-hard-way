@@ -1,0 +1,45 @@
+---
+# tasks file for bootstrap-etcd
+
+- name: Create dirs
+  file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - /etc/etcd 
+    - /var/lib/etcd
+
+- name: Copy ca.pem
+  copy:
+    src: "{{ pki_dir }}/{{ item }}"
+    dest: /etc/etcd/
+    remote_src: true
+    mode: 0600
+  loop:
+    - /ca/ca.pem
+    - kubernetes-key.pem 
+    - kubernetes.pem
+
+- template:
+    src: etcd.service.tpl
+    dest: /etc/systemd/system/etcd.service
+
+- name: Download etcd
+  get_url:
+    url: https://github.com/coreos/etcd/releases/download/{{ ETCD_VER }}/etcd-{{ ETCD_VER }}-linux-amd64.tar.gz
+    dest: /tmp/etcd-{{ ETCD_VER }}-linux-amd64.tar.gz
+ 
+- name: Extract etcd
+  unarchive:
+    src: /tmp/etcd-{{ ETCD_VER }}-linux-amd64.tar.gz
+    dest: /usr/local/bin/
+    remote_src: yes
+    extra_opts:
+      - --strip-components=1
+
+- name: Enable and start etcd
+  systemd:
+    name: "etcd"
+    state: started
+    enabled: yes
+    daemon_reload: yes

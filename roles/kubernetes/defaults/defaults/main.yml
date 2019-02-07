@@ -1,0 +1,40 @@
+---
+# defaults file for defaults
+
+kube_version: v1.12.0
+
+pki_dir: /etc/kubernetes/pki
+
+ETCD_VER: v3.3.9
+
+# base64 encryption key (head -c 32 /dev/urandom | base64)
+ENCRYPTION_KEY: "oGxZ7GAxN7Sv1JUioMRQVTJsEdIsGJAn58CLm+l3qio="
+
+# Public ip
+KUBERNETES_PUBLIC_ADDRESS: 10.233.20.72
+
+# Public port
+KUBERNETES_PUBLIC_PORT: 6443
+
+cluster_name: new-cluster
+
+# PATHS
+kubernetes_conf_dir: /etc/kubernetes/conf/kubernetes
+kubelet_conf_dir: /etc/kubernetes/conf/kubelet
+kubeproxy_conf_dir: /etc/kubernetes/conf/kube-proxy
+
+### OpenSSL setup
+
+ssl_organization_name: SOME_NAME
+ssl_email_address: some@email
+ssl_country_name: RU
+
+# https://github.com/containernetworking/plugins/releases
+cni_plugins_url: https://github.com/containernetworking/plugins/releases/download/v0.7.4/cni-plugins-amd64-v0.7.4.tgz
+
+# https://github.com/containerd/containerd/releases
+containerd_url: https://github.com/containerd/containerd/releases/download/v1.2.2/containerd-1.2.2.linux-amd64.tar.gz
+
+# https://github.com/kubernetes-sigs/cri-tools/releases
+crictl_url: https://github.com/kubernetes-sigs/cri-tools/releases/download/v1.13.0/crictl-v1.13.0-linux-amd64.tar.gz
+

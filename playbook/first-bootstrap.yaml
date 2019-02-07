@@ -1,0 +1,10 @@
+---
+- hosts: localhost
+  become: no
+  tasks:
+  
+- import_playbook: 01-generate-cert.yaml
+- import_playbook: 02-bootstrap-etcd.yaml
+- import_playbook: 03-bootstrap-master.yaml
+- import_playbook: 04-add-worker.yaml
+

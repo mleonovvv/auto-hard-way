@@ -1,0 +1,165 @@
+---
+#Tasks for generate and distriute certs 
+
+- name: copy ca
+  copy:
+    src: "{{ item }}"
+    dest: "{{ pki_dir }}/ca/"
+  loop:
+    - ca.pem
+    - ca-key.pem
+
+- name: Generate privatekey worker
+  openssl_privatekey:
+    path: "{{ pki_dir }}/{{ ansible_hostname }}-key.pem"
+  when: inventory_hostname in groups['workers']
+
+- name: Generate privatekey master
+  openssl_privatekey:
+    path: "{{ pki_dir }}/{{ item }}-key.pem"
+  loop: 
+    - "service-account"
+    - "kube-scheduler"
+    - "kubernetes"
+    - "kube-proxy"
+    - "kube-controller-manager"
+    - "admin"
+  when: inventory_hostname in groups['masters']
+
+- name: Generate privatekey master
+  openssl_privatekey:
+    path: "{{ pki_dir }}/{{ item }}-key.pem"
+  loop: 
+    - "kube-proxy"
+  when: inventory_hostname in groups['workers']
+
+- name: Generate request worker (kubelet) cert 
+  openssl_csr:
+    path: "{{ pki_dir }}/{{ ansible_hostname }}.csr"
+    privatekey_path: "{{ pki_dir }}/{{ ansible_hostname }}-key.pem"
+    organization_name: system:nodes
+    email_address: "{{ ssl_email_address }}"
+    country_name: "{{ ssl_country_name }}"
+    common_name: "system:node:{{ ansible_hostname }}"
+    key_usage:
+      - digitalSignature
+      - keyAgreement
+    extended_key_usage:
+      - clientAuth
+      - serverAuth
+    subject_alt_name: 
+      - "DNS:{{ inventory_hostname }}"
+      - "IP:{{ ansible_host }}"
+      - "IP:{{ KUBERNETES_PUBLIC_ADDRESS }}"
+  when: inventory_hostname in groups['workers']
+
+- debug:
+    msg: "IP:{{ hostvars | json_query('*.ansible_host')|join(', IP:') }}"
+  
+- name: Generate request kubernetes cert (API)
+  openssl_csr:
+    path: "{{ pki_dir }}/kubernetes.csr"
+    privatekey_path: "{{ pki_dir }}/kubernetes-key.pem"
+    email_address: "{{ ssl_email_address }}"
+    country_name: "{{ ssl_country_name }}"
+    organization_name: Kubernetes
+    common_name: kubernetes
+    key_usage:
+      - digitalSignature
+      - keyAgreement
+    extended_key_usage:
+      - clientAuth
+      - serverAuth
+    subject_alt_name: 
+      - "DNS:{{ ansible_hostname }}"
+      - "DNS:kubernetes"
+      - "DNS:kubernetes.default"
+      - "DNS:kubernetes.default.svc"
+      - "DNS:kubernetes.default.svc.cluster.local"
+      - "IP:10.32.0.1"
+      - "IP:{{ hostvars | json_query('*.ansible_host')|join(', IP:') }}"
+      - "IP:127.0.0.1"
+      - "IP:{{ KUBERNETES_PUBLIC_ADDRESS }}"
+  when: inventory_hostname in groups['masters']
+
+- name: Generate request other
+  openssl_csr:
+    path: "{{ pki_dir }}/{{ item.file_name }}.csr"
+    privatekey_path: "{{ pki_dir }}/{{ item.file_name }}-key.pem"
+    organization_name: "{{ item.o_name }}"
+    email_address: "{{ ssl_email_address }}"
+    country_name: "{{ ssl_country_name }}"
+    common_name: "{{ item.common_name }}"
+    key_usage:
+      - digitalSignature
+      - keyAgreement
+    extended_key_usage:
+      - clientAuth
+      - serverAuth
+  loop:
+    - { file_name: "service-account", common_name: 'service-accounts', o_name: "Kubernetes"}
+    - { file_name: "kube-scheduler", common_name: 'system:kube-scheduler', o_name: "system:kube-scheduler" }
+    - { file_name: "kube-controller-manager", common_name: 'system:kube-controller-manager', o_name: "system:kube-controller-manager" }
+    - { file_name: "admin", common_name: 'admin', o_name: "system:masters" }
+  when: inventory_hostname in groups['masters']
+
+- name: Generate proxy request
+  openssl_csr:
+    path: "{{ pki_dir }}/{{ item.file_name }}.csr"
+    privatekey_path: "{{ pki_dir }}/{{ item.file_name }}-key.pem"
+    organization_name: "{{ item.o_name }}"
+    email_address: "{{ ssl_email_address }}"
+    country_name: "{{ ssl_country_name }}"
+    common_name: "{{ item.common_name }}"
+    key_usage:
+      - digitalSignature
+      - keyAgreement
+    extended_key_usage:
+      - clientAuth
+      - serverAuth
+  loop:
+    - { file_name: "kube-proxy", common_name: 'system:kube-proxy', o_name: "system:node-proxier" }
+  when: inventory_hostname in groups['workers']
+
+- name: Sign worker
+  openssl_certificate:
+    path: "{{ pki_dir }}/{{ ansible_hostname }}.pem"
+    ownca_path: "{{ pki_dir }}/ca/ca.pem"
+    ownca_privatekey_path: "{{ pki_dir }}/ca/ca-key.pem"
+    csr_path: "{{ pki_dir }}/{{ ansible_hostname }}.csr"
+    provider: ownca
+  when: inventory_hostname in groups['workers']
+
+- name: Sign API
+  openssl_certificate:
+    path: "{{ pki_dir }}/kubernetes.pem"
+    csr_path: "{{ pki_dir }}/kubernetes.csr"
+    ownca_path: "{{ pki_dir }}/ca/ca.pem"
+    ownca_privatekey_path: "{{ pki_dir }}/ca/ca-key.pem"
+    provider: ownca
+  when: inventory_hostname in groups['masters']
+
+- name: Sign other
+  openssl_certificate:
+    path: "{{ pki_dir }}/{{ item }}.pem"
+    ownca_path: "{{ pki_dir }}/ca/ca.pem"
+    ownca_privatekey_path: "{{ pki_dir }}/ca/ca-key.pem"
+    csr_path: "{{ pki_dir }}/{{ item }}.csr"
+    provider: ownca
+  loop: 
+    - "service-account"
+    - "kube-scheduler"
+    - "kube-controller-manager"
+    - "admin"
+  when: inventory_hostname in groups['masters']
+
+- name: Sign other
+  openssl_certificate:
+    path: "{{ pki_dir }}/{{ item }}.pem"
+    ownca_path: "{{ pki_dir }}/ca/ca.pem"
+    ownca_privatekey_path: "{{ pki_dir }}/ca/ca-key.pem"
+    csr_path: "{{ pki_dir }}/{{ item }}.csr"
+    provider: ownca
+  loop: 
+    - "kube-proxy"
+  when: inventory_hostname in groups['workers']

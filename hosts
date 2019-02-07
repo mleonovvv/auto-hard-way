@@ -1,0 +1,16 @@
+[masters]
+master-1    ansible_host=10.55.228.63 INTERNAL_IP=10.240.0.11
+
+[workers]
+worker-1    ansible_host=10.55.228.114 POD_CIDR=10.200.1.0/24 INTERNAL_IP=10.240.0.21
+
+[etcd]
+master-1
+
+[masters:vars]
+ansible_user=ubuntu 
+ansible_python_interpreter=/usr/bin/python3
+
+[workers:vars]
+ansible_user=ubuntu 
+ansible_python_interpreter=/usr/bin/python3

@@ -1,0 +1,53 @@
+---
+#- set_fact:
+#    config_items: ["admin", "system:kube-controller-manager", "system:kube-scheduler"]
+#  when: inventory_hostname in groups['masters']
+#
+#- set_fact:
+#    config_items: ["system:node:{{ ansible_hostname }}", "system:kube-proxy"]
+#  when: inventory_hostname in groups['workers']
+
+- name: config set-cluster
+  shell: |
+    kubectl config set-cluster {{ cluster_name }} \
+    --certificate-authority="{{ pki_dir }}/ca/ca.pem" \
+    --embed-certs=true \
+    --server=https://127.0.0.1:{{ KUBERNETES_PUBLIC_PORT }} \
+    --kubeconfig="{{ item.conf_dir }}/{{ item.config_name }}.kubeconfig" &&
+    kubectl config set-credentials {{ item.user }} \
+    --client-certificate="{{ pki_dir }}/{{ item.config_name }}.pem" \
+    --client-key="{{ pki_dir }}/{{ item.config_name }}-key.pem" \
+    --embed-certs=true \
+    --kubeconfig="{{ item.conf_dir }}/{{ item.config_name }}.kubeconfig" &&
+    kubectl config set-context default \
+    --cluster="{{ cluster_name }}" \
+    --user={{ item.user }} \
+    --kubeconfig="{{ item.conf_dir }}/{{ item.config_name }}.kubeconfig" &&
+    kubectl config use-context default --kubeconfig="{{ item.conf_dir }}/{{ item.config_name }}.kubeconfig"
+  when: inventory_hostname in groups['masters']
+  loop: 
+    - { config_name: "kube-controller-manager", user: "system:kube-controller-manager", conf_dir: "{{ kubernetes_conf_dir }}" }
+    - { config_name: "kube-scheduler", user: "system:kube-scheduler", conf_dir: "{{ kubernetes_conf_dir }}" }
+    - { config_name: "admin", user: "admin", conf_dir: "{{ kubernetes_conf_dir }}" }
+
+- name: config set-cluster
+  shell: |
+    kubectl config set-cluster {{ cluster_name }} \
+    --certificate-authority="{{ pki_dir }}/ca/ca.pem" \
+    --embed-certs=true \
+    --server=https://{{ KUBERNETES_PUBLIC_ADDRESS }}:{{ KUBERNETES_PUBLIC_PORT }} \
+    --kubeconfig="{{ item.conf_dir }}/{{ item.config_name }}.kubeconfig" &&
+    kubectl config set-credentials {{ item.user }} \
+    --client-certificate="{{ pki_dir }}/{{ item.config_name }}.pem" \
+    --client-key="{{ pki_dir }}/{{ item.config_name }}-key.pem" \
+    --embed-certs=true \
+    --kubeconfig="{{ item.conf_dir }}/{{ item.config_name }}.kubeconfig" &&
+    kubectl config set-context default \
+    --cluster="{{ cluster_name }}" \
+    --user={{ item.user }} \
+    --kubeconfig="{{ item.conf_dir }}/{{ item.config_name }}.kubeconfig" &&
+    kubectl config use-context default --kubeconfig="{{ item.conf_dir }}/{{ item.config_name }}.kubeconfig"
+  when: inventory_hostname in groups['workers']
+  loop: 
+    - { config_name: "{{ inventory_hostname }}", user: "system:node:{{ inventory_hostname }}", conf_dir: "{{ kubelet_conf_dir }}" }
+    - { config_name: "kube-proxy", user: "system:kube-proxy", conf_dir: "{{ kubeproxy_conf_dir }}" }

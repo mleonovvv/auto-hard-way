@@ -1,0 +1,6 @@
+---
+# handlers file for prepare
+- name: syslog restart
+  service: 
+    name: syslog
+    state: restarted

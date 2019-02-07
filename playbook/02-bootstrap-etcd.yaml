@@ -1,0 +1,7 @@
+---
+- hosts: etcd
+  become: yes
+  roles: 
+    - kubernetes/defaults
+      #    - kubernetes/cert
+    - kubernetes/bootstrap-etcd

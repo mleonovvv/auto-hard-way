@@ -1,0 +1,90 @@
+---
+# tasks file for kubernetes-worker#!/bin/bash
+
+- name: Create directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: 0755
+  loop:
+    - "/etc/kubernetes/config"
+    - "/etc/kubernetes/manifests/RBAC"
+    - "{{ kubernetes_conf_dir }}"
+
+- name: Download binaries
+  get_url:
+    url: "https://storage.googleapis.com/kubernetes-release/release/{{ kube_version }}/bin/linux/amd64/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    mode: u+x
+  loop:
+    - kube-apiserver
+    - kube-controller-manager
+    - kube-scheduler
+    - kubectl
+
+- name: Copy template services
+  template:
+    src: "{{ item }}.tpl"
+    dest: "/etc/systemd/system/{{ item }}"
+  loop:
+    - kube-apiserver.service
+    - kube-controller-manager.service
+    - kube-scheduler.service
+
+- name: Copy template kube-scheduler.yaml.tpl
+  template:
+    src: "kube-scheduler.yaml.tpl"
+    dest: "/etc/kubernetes/config/kube-scheduler.yaml"
+
+- name: Enable and start service
+  systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  loop:
+    - kube-apiserver
+    - kube-controller-manager
+    - kube-scheduler
+
+  # чет не рабоает 
+      #- name: Wait for apiserver
+      #  wait_for:
+      #    host: localhost
+      #    port: 8080
+      #    delay: 3
+
+- pause:
+    seconds: 7
+
+- name: Copy template encrypted key
+  template:
+    src: encryption-config.yaml.tpl
+    dest: "{{ kubernetes_conf_dir }}/encryption-config.yaml"
+
+    #- name: Edit haproxy.cfg
+    #  lineinfile:
+    #    path: /etc/haproxy/haproxy.cfg
+    #    #after: '# Adding IP address'
+    #    regexp: "^.*server.*{{ inventory_hostname }}.*check$"
+    #    line: "    server {{ inventory_hostname }} {{ ansible_host }}:6443 check"
+    #  delegate_to: localhost
+    #  become: yes
+    #
+    #- name: Reload haproxy
+    #  service:
+    #    name: haproxy
+    #    state: restarted
+    #  become: yes
+    #  delegate_to: localhost
+
+- name: Copy ClusterRole&Binding yaml
+  copy:
+    src: "{{ item }}"
+    dest: "/etc/kubernetes/manifests/RBAC"
+  loop:
+    - cr-kube-apiserver-to-kubelet.yaml
+    - crb-kube-apiserver-to-kubelet.yaml
+ 
+- name: Apply kubelet role
+  command: kubectl apply -f /etc/kubernetes/manifests/RBAC

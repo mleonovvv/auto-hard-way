@@ -1,0 +1,6 @@
+---
+- hosts: all
+  become: yes
+  roles: 
+    - kubernetes/defaults
+    - kubernetes/cert

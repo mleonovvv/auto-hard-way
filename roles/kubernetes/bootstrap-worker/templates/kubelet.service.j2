@@ -1,0 +1,27 @@
+[Unit]
+Description=Kubernetes Kubelet
+Documentation=https://github.com/kubernetes/kubernetes
+After=containerd.service
+Requires=containerd.service
+
+[Service]
+ExecStart=/usr/local/bin/kubelet \
+  --config={{ kubelet_conf_dir }}/kubelet-config.yaml \
+  --container-runtime=remote \
+  --container-runtime-endpoint=unix:///var/run/containerd/containerd.sock \
+  --image-pull-progress-deadline=2m \
+  --kubeconfig={{ kubelet_conf_dir }}/{{ inventory_hostname }}.kubeconfig \
+  --network-plugin=cni \
+  --register-node=true \
+  --kube-reserved=cpu=200m,memory=512Mi,ephemeral-storage=1Gi \
+  --system-reserved=cpu=200m,memory=512Mi,ephemeral-storage=1Gi \
+  --eviction-hard=memory.available<200Mi,nodefs.available<10% \
+  --container-log-max-files=2 \
+  --fail-swap-on=false \
+  --v=2
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=100000
+
+[Install]
+WantedBy=multi-user.target

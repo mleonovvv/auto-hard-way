@@ -1,0 +1,14 @@
+---
+# tasks file for prepare
+
+- name: set timezone to Europe/Moscow
+  timezone:
+    name: Europe/Moscow
+  notify:
+    - syslog restart
+ 
+- name: Remove swapfile from /etc/fstab
+  mount:
+    name: swap
+    fstype: swap
+    state: absent

@@ -1,0 +1,14 @@
+---
+- hosts: workers
+  become: yes
+  roles: 
+    - prepare
+    - kubernetes/defaults
+      #    - kubernetes/cert
+    - kubernetes/bootstrap-worker
+    - kubernetes/conf
+
+#- hosts: test
+#  become: no
+#  roles: 
+#    - kubernetes-worker
